@@ -20,7 +20,7 @@ def get_food_data():
     DATA_FILENAME = Path(__file__).parent.parent/'data/Food_Production.csv'
     food_df = pd.read_csv(DATA_FILENAME)
 
-food_df.rename(columns={'Food product': 'Food_product'}, inplace=True)
+    food_df.rename(columns={'Food product': 'Food_product'}, inplace=True)
     
     return food_df
 
