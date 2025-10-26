@@ -4,6 +4,8 @@ import numpy as np
 import math
 from pathlib import Path
 
+# -----------------------------------------------------------------------------
+
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
     page_title='Food Production Emissions Dashboard',
@@ -13,10 +15,11 @@ st.set_page_config(
 
 # -----------------------------------------------------------------------------
 
+# load datasets
+
 @st.cache_data
 def get_food_data():
 
-    #DATA_FILENAME = Path(__file__).parent/'data/Food_Production.csv'
     DATA_FILENAME = Path(__file__).parent.parent/'data/Food_Production.csv'
     food_df = pd.read_csv(DATA_FILENAME)
 
@@ -27,6 +30,7 @@ def get_food_data():
 food_df = get_food_data()
 
 # -----------------------------------------------------------------------------
+
 # Draw the actual page
 
 # Set the title that appears at the top of the page.
