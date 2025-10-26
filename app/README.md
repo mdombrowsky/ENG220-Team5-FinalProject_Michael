@@ -1,9 +1,6 @@
-# :earth_americas: GDP dashboard template
+# :seedling: Food Production Emissions Dashboard
 
-A simple Streamlit app showing the GDP of different countries in the world.
-
-# new url
-# https://appapppy-7v59csoemdyneybtxyvgml.streamlit.app/
+Streamlit app showing the enviromental impact in food production.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://appapppy-7v59csoemdyneybtxyvgml.streamlit.app/)
 
@@ -20,3 +17,5 @@ A simple Streamlit app showing the GDP of different countries in the world.
    ```
    $ streamlit run streamlit_app.py
    ```
+
+## hey that is the default readme. do not use it, Michael
