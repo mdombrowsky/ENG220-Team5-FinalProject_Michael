@@ -1,151 +1,140 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import math
 from pathlib import Path
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='title testing dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title='Food Production Emissions Dashboard',
+    page_icon=':seedling:',
+    layout='wide'
 )
 
 # -----------------------------------------------------------------------------
-# Declare some useful functions.
 
 @st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+def get_food_data():
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+    DATA_FILENAME = Path(__file__).parent/'data/Food_Production.csv'
+    food_df = pd.read_csv(DATA_FILENAME)
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+food_df.rename(columns={'Food product': 'Food_product'}, inplace=True)
+    
+    return food_df
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
+food_df = get_food_data()
 
 # -----------------------------------------------------------------------------
 # Draw the actual page
 
 # Set the title that appears at the top of the page.
 '''
-# :earth_americas: GDP dashboard
+# :seedling: Food Production Emissions Dashboard
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
+Browse environmental impact data for various food products. Data is sourced from research on **Global Food System Emissions**.
 '''
 
 # Add some spacing
 ''
 ''
 
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
+# --- Input Widgets ---
 
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
+# 1. Select the Metric to compare
+metric_cols = food_df.columns[1:] # All columns after 'Food_product' are metrics
 
-countries = gdp_df['Country Code'].unique()
+# We'll default to 'Total_emissions' if it exists, otherwise the first column
+default_metric = 'Total_emissions' if 'Total_emissions' in metric_cols else metric_cols[0]
+default_index = list(metric_cols).index(default_metric) if default_metric in metric_cols else 0
 
-if not len(countries):
-    st.warning("Select at least one country")
+selected_metric = st.selectbox(
+    'Which **Environmental Metric** would you like to compare?',
+    metric_cols,
+    index=default_index,
+    help="Select a column to visualize and use for comparison metrics."
+)
 
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
+# 2. Select the Food Products
+products = food_df['Food_product'].unique()
 
-''
-''
-''
+if not len(products):
+    st.warning("No food products found in data. Please check your CSV file.")
 
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
+# Set a few default products for a good initial view
+default_selection = [p for p in ['Beef (beef herd)', 'Cheese', 'Tofu', 'Oatmeal'] if p in products]
 
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
+selected_products = st.multiselect(
+    'Which **Food Products** would you like to view?',
+    products,
+    default_selection
 )
 
 ''
 ''
+''
 
+# --- Visualization ---
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+# Filter the data
+filtered_food_df = food_df[
+    (food_df['Food_product'].isin(selected_products))
+].sort_values(by=selected_metric, ascending=False) # Sort by the selected metric
 
-st.header(f'GDP in {to_year}', divider='gray')
+st.header(f'Comparison of {selected_metric}', divider='gray')
 
 ''
 
-cols = st.columns(4)
+# Create a bar chart for comparison
+if not filtered_food_df.empty:
+    chart_df = filtered_food_df[['Food_product', selected_metric]].set_index('Food_product')
+    
+    st.bar_chart(
+        chart_df,
+        y=selected_metric,
+        use_container_width=True
+    )
+else:
+    st.info("Please select at least one food product to display the chart.")
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
+''
+''
 
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
+# --- Metrics ---
 
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+st.header(f'Highest Impact Products for {selected_metric}', divider='gray')
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+if not filtered_food_df.empty:
+    # Get the top 3 (or fewer if less than 3 are selected)
+    top_products = filtered_food_df.head(3)
+    
+    cols = st.columns(3)
+
+    for i, (index, row) in enumerate(top_products.iterrows()):
+        with cols[i]:
+            product_name = row['Food_product']
+            metric_value = row[selected_metric]
+            
+            # Check for NaN and display a message if so
+            if np.isnan(metric_value):
+                st.metric(
+                    label=product_name,
+                    value='N/A',
+                    delta_color='off'
+                )
+            else:
+                # Format the value to 2 decimal places
+                formatted_value = f'{metric_value:,.2f}'
+                
+                # The 'delta' can show the difference from the average of the selected products
+                avg_value = filtered_food_df[selected_metric].mean()
+                delta_value = metric_value - avg_value
+                
+                st.metric(
+                    label=product_name,
+                    value=formatted_value,
+                    delta=f'{delta_value:,.2f} from Avg',
+                    delta_color='inverse' if delta_value < 0 else 'normal'
+                )
+else:
+    st.info("No products selected to calculate metrics.")
